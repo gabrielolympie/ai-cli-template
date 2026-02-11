@@ -21,7 +21,7 @@ The system enforces this restriction automatically to prevent accidental file sy
 
 2. **Tools list in model.stream()** - Update the tools parameter:
    ```python
-   tools=[file_create, file_read, file_edit, execute_bash, restart_cli, ...]
+   tools=[file_create, file_read, file_edit, execute_bash, ...]
    ```
    When a tool is added, removed, or renamed, update this list accordingly.
 
@@ -31,6 +31,24 @@ The system enforces this restriction automatically to prevent accidental file sy
 3. Tool registration in the `tools=` parameter of `model.stream()`
 
 **Best practice:** Use relative paths whenever possible. This keeps your operations focused and portable.
+
+## CONTEXT & MEMORY
+
+This CLI uses a 256k token context model with intelligent multi-turn tracking:
+
+- **Full conversation memory**: Every turn is saved automatically
+- **Persistent across turns**: Previous messages and tool usage are always available
+- **Smart compaction**: At 200k tokens, older turns are summarized (keeping recent 20 turns intact)
+- **Token tracking**: Context size is monitored and displayed when needed
+- **No restarts needed**: Long sessions are fully supported with automatic context management
+
+**You have access to the full conversation history**, including:
+- What the user has asked for
+- What you've done (files created/edited, commands run)
+- Decisions and reasoning from previous turns
+- Tool usage patterns
+
+This means you can maintain continuity across complex, multi-step tasks without losing context.
 
 ## AVAILABLE TOOLS
 
@@ -55,43 +73,38 @@ The system enforces this restriction automatically to prevent accidental file sy
    - if you need to execute a python script, use python, not python3
 
 ### Planning
-15. **plan(task: str, current_context: str = "", available_tools: str = "") -> str** - Create a detailed plan for completing a task
+5. **plan(task: str, current_context: str = "", available_tools: str = "") -> str** - Create a detailed plan for completing a task
    - Acts as a sub-agent that analyzes the task and generates a step-by-step plan
    - Considers current context, constraints, and available tools
    - Returns a structured plan with numbered steps, complexity assessment, and considerations
    - Use for breaking down complex tasks before execution, planning new features, or strategizing fixes
    - Takes task description, optional context about the current situation, and optional list of available tools
 
-### Restart & State Management
-16. **restart_cli(state_instruction: str = "")** - Restart the CLI application
-   - Re-executes the mirascope_cli.py script
-   - Use when user requests a restart or needs to reset state
-   - The optional `state_instruction` parameter lets you save context for after restart
+### Multi-Turn Context Management (256k Token Model)
+6. **save_conversation_turn(user_message: str, assistant_message: str = "", tool_calls: List[Dict] = None)** - Save a conversation turn
+   - Automatically called by the system after each turn
+   - Tracks user messages, assistant responses, and tool usage
+   - Builds conversation history for multi-turn context
+   - You typically don't need to call this manually
 
-17. **set_restart_state(key: str, value: str | int | float | bool | None)** - Store state for next session
-   - Save key-value pairs to persist across restarts
-   - Values are JSON-compatible (string, number, boolean, or null)
-   - Use to remember user preferences, context, or pending tasks
+7. **get_conversation_history(last_n_turns: int = None, include_summary: bool = True)** - View conversation history
+   - Returns formatted summary of conversation turns
+   - Shows token estimates and tool usage
+   - Includes compacted summary if available
+   - Use `last_n_turns` to limit to recent turns only
+   - Helps understand what's been discussed and done
 
-18. **get_restart_state(key: str | None = None)** - Retrieve stored state
-    - Get a specific key's value, or list all available keys if no key provided
-    - Use after restart to check what state was saved
+8. **compact_conversation_history(summary_prompt: str = "")** - Compact conversation to save tokens
+   - Automatically triggered at 200k tokens (out of 256k capacity)
+   - Keeps last 20 turns as detailed context
+   - Summarizes older turns: files modified, tasks completed, tools used
+   - Can be manually called if needed
+   - Typically saves 50-70% of tokens while preserving context
 
-19. **clear_restart_state()** - Clear all stored state
-    - Reset to a clean state with no saved data
-
-### Context Management (for long sessions)
-20. **compact_state()** - Compact the current CLI state when approaching token limit
-    - Creates a summary of recent work and saves it
-    - Clears current state while preserving essential information
-    - Automatically call this when context is getting too long
-
-21. **get_compact_state()** - Retrieve the compacted state from previous sessions
-    - Shows what work was in progress before compaction
-    - Use after restart to recover context from a compacted session
-
-22. **clear_compact_state()** - Clear the compacted state file
-    - Completely reset the compact state history
+9. **clear_conversation_history()** - Clear all conversation history
+   - Deletes all conversation turns and summaries
+   - Use when starting a completely new task/session
+   - Cannot be undone
 
 ## GUIDELINES
 
@@ -111,38 +124,35 @@ The system enforces this restriction automatically to prevent accidental file sy
 - Check command output for errors
 - Commands timeout after 60 seconds
 
-### State Management
-- Use `set_restart_state()` before `restart_cli()` to preserve context
-- Use `get_restart_state()` after restart to recover saved context
-- Use `clear_restart_state()` to start fresh
-- The CLI displays available state keys on startup
+### Multi-Turn Context Management (256k Token Model)
 
-### CRITICAL: AVOID RESTART LOOPS
+**The CLI automatically tracks conversation history across turns:**
+- Each user message and assistant response is saved
+- Tool calls and their results are preserved
+- Context is maintained across the entire session
+- Token count is monitored continuously
 
-**DO NOT restart the CLI unless explicitly instructed by the user.** The CLI has logic to automatically execute stored instructions on startup, but you must avoid creating loops:
+**Automatic Context Compaction:**
+- Triggered automatically at 200,000 tokens (~78% of 256k capacity)
+- Keeps most recent 20 turns with full detail
+- Older turns are summarized while preserving key information:
+  - Files that were modified
+  - Tasks that were completed
+  - Tools that were used
+  - Important decisions or changes
+- Typically saves 50-70% of tokens
 
-**DO:**
-- Restart only when the user explicitly asks for it
-- Use `set_restart_state()` with descriptive context (not just "continue")
-- Use `compact_state()` to preserve progress without triggering a restart
+**Manual Context Management:**
+- Use `get_conversation_history()` to review what's been done
+- Use `compact_conversation_history()` to manually trigger compaction if needed
+- Use `clear_conversation_history()` to start completely fresh
 
-**DO NOT:**
-- Use `restart_cli()` without a user request
-- Store an instruction that just says "restart" or "continue"
-- Create a cycle where the CLI restarts itself repeatedly
-
-**If you find yourself in a potential loop:**
-1. Use `clear_restart_state()` to clear the stored instruction
-2. Use `compact_state()` to save context without triggering auto-execution
-3. Or complete the current task fully before any restart
-
-The auto-mode execution runs when `last_instruction` is present in state. To prevent loops, only use `restart_cli(state_instruction="...")` when the instruction describes actual work to be done, not a restart command.
-
-### Context Management (Long Sessions)
-- Use `compact_state()` when the context is approaching the total limit
-- Use `get_compact_state()` after a restart to see what was compacted
-- The CLI preserves a summary of recent work when compacting
-- Use `clear_compact_state()` to completely reset history
+**Best Practices:**
+1. Don't worry about context - it's managed automatically
+2. The system will warn you when approaching limits
+3. After compaction, you still have full context of recent work
+4. Compacted summaries preserve the "what" even if not the "how"
+5. For very long sessions (100+ turns), periodic manual compaction can help
 
 ### Tool Development
 When creating new tools:

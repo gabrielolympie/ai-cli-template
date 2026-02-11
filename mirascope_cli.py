@@ -8,13 +8,8 @@ from src.tools.file_create import file_create
 from src.tools.file_read import file_read
 from src.tools.file_edit import file_edit
 from src.tools.execute_bash import execute_bash
-from src.tools.context_manager import (
-    save_conversation_turn,
-    get_conversation_history,
-    compact_conversation_history,
-    clear_conversation_history,
-    estimate_tokens
-)
+from src.tools.compact_state import compact_state, get_compact_state, clear_compact_state, COMPACT_STATE_FILE
+from src.tools.restart_cli import restart_cli, STATE_FILE
 from src.tools.plan import plan
 
 os.environ['OPENAI_API_KEY'] = "sk-010101"
@@ -35,10 +30,6 @@ model = llm.Model(
     # top_k=20,
     thinking={"level": "high", "include_thoughts": True}
 )
-
-
-
-
 
 def load_base_prompt(prompt_path: str = "prompts/cli.md") -> str:
     """Load the base system prompt from a markdown file."""
@@ -64,12 +55,6 @@ def cli():
     system_prompt = load_base_prompt() + load_claude_md()
     
     print("Welcome to the Custom CLI Assistant! Type your commands below.")
-    print("Context tracking enabled (256k token model)")
-    
-    # Load conversation history
-    history = get_conversation_history()
-    if history:
-        print(f"Loaded {len(history)} previous conversation turns.")
 
     while True:
         try:
@@ -82,45 +67,10 @@ def cli():
             print("Goodbye!")
             break
         
-        # Build messages with conversation history
-        messages = [llm.messages.system(system_prompt)]
-        
-        # Add conversation history
-        for turn in history:
-            messages.append(llm.messages.user(turn['user']))
-            if turn.get('assistant'):
-                messages.append(llm.messages.assistant(turn['assistant']))
-            # Add tool calls and results if present
-            if turn.get('tool_calls'):
-                for tool_call in turn['tool_calls']:
-                    messages.append(llm.messages.tool_call(
-                        name=tool_call['name'],
-                        args=tool_call['args'],
-                        id=tool_call.get('id', '')
-                    ))
-                    if tool_call.get('result'):
-                        messages.append(llm.messages.tool_result(
-                            result=tool_call['result'],
-                            id=tool_call.get('id', '')
-                        ))
-        
-        # Add current user input
-        messages.append(llm.messages.user(user_input))
-        
-        # Check token count and compact if necessary (threshold: 200k tokens for safety)
-        estimated_tokens = estimate_tokens(messages)
-        if estimated_tokens > 200000:
-            print(f"\n⚠️  Context size: ~{estimated_tokens:,} tokens. Compacting conversation history...")
-            compact_conversation_history()
-            history = get_conversation_history()
-            # Rebuild messages with compacted history
-            messages = [llm.messages.system(system_prompt)]
-            for turn in history:
-                messages.append(llm.messages.user(turn['user']))
-                if turn.get('assistant'):
-                    messages.append(llm.messages.assistant(turn['assistant']))
-            messages.append(llm.messages.user(user_input))
-            print(f"✓ Context compacted. New size: ~{estimate_tokens(messages):,} tokens\n")
+        messages = [
+            llm.messages.system(system_prompt),
+            llm.messages.user(user_input),
+        ]
 
         response = model.stream(
             messages,
@@ -129,10 +79,10 @@ def cli():
                 file_read,
                 file_edit,
                 execute_bash,
-                save_conversation_turn,
-                get_conversation_history,
-                compact_conversation_history,
-                clear_conversation_history,
+                restart_cli,
+                compact_state,
+                get_compact_state,
+                clear_compact_state,
                 plan
             ],
         )
@@ -165,25 +115,6 @@ def cli():
 
             if not response.tool_calls:
                 break  # Agent is finished.
-        
-        # Save this conversation turn
-        assistant_response = response.message.content if hasattr(response.message, 'content') else ""
-        tool_calls_data = []
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            for tc in response.tool_calls:
-                tool_calls_data.append({
-                    'name': tc.name,
-                    'args': tc.args,
-                    'id': getattr(tc, 'id', ''),
-                    'result': getattr(tc, 'result', None) if hasattr(tc, 'result') else None
-                })
-        
-        save_conversation_turn(
-            user_message=user_input,
-            assistant_message=assistant_response,
-            tool_calls=tool_calls_data if tool_calls_data else None
-        )
-        history = get_conversation_history()
 
             response = response.resume(response.execute_tools())
 
