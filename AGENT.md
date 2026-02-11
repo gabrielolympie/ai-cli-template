@@ -1,14 +1,32 @@
 # Agent Memory
 
-This file stores important information that should be kept in state across conversations.
+This file stores important information that should be kept in state across conversations and when the project context changes.
 
-## Guidelines for Use
+## Purpose
 
-As specified in cli.md, this file should be:
-- systematically appended to the system prompt when available
-- used to store important information to keep in state across conversations
-- updated by the agent when new relevant information is learned
+This file serves as persistent memory for the agent. It stores:
+- Project-specific context that should persist across sessions
+- Team guidelines and preferences
+- Project structure updates
+- System configuration changes
+- Any important information that shouldn't be lost between conversations
 
 ## Contents
 
 *Information will be added here over time as the agent learns and remembers important details.*
+
+### System Updates
+
+**2024-02-11**: Added skill management system
+- Skill loading from `.claude/skills/` directory
+- Automatic skill inventory in system prompt
+- Skill management tools (list_skills, get_skill_info, skill_search)
+- Documentation skill with writing guides
+
+### Recent Updates
+
+*Add new entries at the top for the most recent information.*
+
+### Project Notes
+
+*Add any project-specific information here.*

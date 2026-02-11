@@ -52,7 +52,7 @@ os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
 
 ## Configuration
 
-- **System prompt**: Edit `prompts/cli.md`
+- **System prompt**: Edit `prompts/system.md`
 - **Model config**: Adjust in `mirascope_cli.py` (`model = llm.Model(...)`)
 
 ## Adding Tools
@@ -80,9 +80,11 @@ def my_new_tool(param: str) -> str:
 ```
 mirascope_cli.py        # Main entry point
 prompts/
-  cli.md               # System prompt
-  plan.md              # Planning template
-src/tools/             # Tool definitions
+  system.md             # System prompt
+  plan.md               # Planning template
+src/tools/              # Tool definitions
+src/skills/             # Skill management system
+.claude/skills/         # User-created skills
 ```
 
 ## License

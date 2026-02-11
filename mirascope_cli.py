@@ -12,6 +12,17 @@ from src.multiline_input import multiline_input
 from src.tools.plan import plan
 from src.tools.browse_internet import browse_internet
 
+# Skill Management
+from src.skills.manager import get_skill_manager, SkillManager
+
+# Initialize skill manager on startup
+skill_manager: SkillManager = get_skill_manager()
+skill_manager.load_skills()
+
+# Generate skill inventory for system prompt
+skill_inventory = skill_manager.generate_prompt_context()
+skill_writer_guide = skill_manager.generate_skill_writer_guide()
+
 os.environ['OPENAI_API_KEY'] = "sk-010101"
 os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
 
@@ -28,8 +39,8 @@ model = llm.Model(
     thinking={"level": "high", "include_thoughts": True}
 )
 
-def load_base_prompt(prompt_path: str = "prompts/cli.md") -> str:
-    """Load the base system prompt from a markdown file."""
+def load_base_prompt(prompt_path: str = "prompts/system.md") -> str:
+    """Load the system prompt from prompts/system.md."""
     with open(prompt_path, "r", encoding="utf-8") as f:
         return f.read()
 
@@ -43,7 +54,20 @@ def load_claude_md() -> str:
 
 def cli():
     """Main CLI loop for the assistant."""
-    system_prompt = load_base_prompt() + load_claude_md()
+    # Load base prompt and skill information
+    base_prompt = load_base_prompt()
+    claude_md = load_claude_md()
+    
+    # Build system prompt with all components
+    system_prompt = base_prompt + claude_md
+    
+    # Add skill inventory if available
+    if skill_inventory:
+        system_prompt += "\n\n" + skill_inventory
+    
+    # Add skill writer guide for documentation
+    if skill_writer_guide:
+        system_prompt += "\n\n" + skill_writer_guide
     
     print("Welcome to the Custom CLI Assistant! Type your commands below.")
     print("  - Press Alt + Enter for new lines")
@@ -81,6 +105,7 @@ def cli():
                 execute_bash,
                 plan,
                 browse_internet,
+                # Skill tools will be added dynamically
             ],
         )
 
