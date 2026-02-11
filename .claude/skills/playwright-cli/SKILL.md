@@ -9,7 +9,7 @@ allowed-tools: Bash(playwright-cli:*)
 ## Quick start
 
 ```bash
-# open new browser
+# open new browser (always in headed mode by default)
 playwright-cli open
 # navigate to a page
 playwright-cli goto https://playwright.dev
@@ -28,7 +28,7 @@ playwright-cli close
 ### Core
 
 ```bash
-playwright-cli open
+playwright-cli open --headed
 # open and navigate right away
 playwright-cli open https://example.com/
 playwright-cli goto https://playwright.dev
@@ -98,48 +98,30 @@ playwright-cli tab-new
 playwright-cli tab-new https://example.com/page
 playwright-cli tab-close
 playwright-cli tab-close 2
-playwright-cli tab-select 0
+playwright-cli tab-select 1
 ```
 
 ### Storage
 
 ```bash
-playwright-cli state-save
-playwright-cli state-save auth.json
-playwright-cli state-load auth.json
-
-# Cookies
+playwright-cli state-load auth-state.json
+playwright-cli state-save auth-state.json
 playwright-cli cookie-list
-playwright-cli cookie-list --domain=example.com
-playwright-cli cookie-get session_id
-playwright-cli cookie-set session_id abc123
-playwright-cli cookie-set session_id abc123 --domain=example.com --httpOnly --secure
-playwright-cli cookie-delete session_id
-playwright-cli cookie-clear
-
-# LocalStorage
-playwright-cli localstorage-list
-playwright-cli localstorage-get theme
-playwright-cli localstorage-set theme dark
-playwright-cli localstorage-delete theme
-playwright-cli localstorage-clear
-
-# SessionStorage
-playwright-cli sessionstorage-list
-playwright-cli sessionstorage-get step
-playwright-cli sessionstorage-set step 3
-playwright-cli sessionstorage-delete step
-playwright-cli sessionstorage-clear
+playwright-cli cookie-get sessionid
+playwright-cli cookie-set token abc123
+playwright-cli cookie-delete sessionid
+playwright-cli localstorage-set key value
+playwright-cli localstorage-get key
+playwright-cli sessionstorage-set key value
 ```
 
 ### Network
 
 ```bash
-playwright-cli route "**/*.jpg" --status=404
-playwright-cli route "https://api.example.com/**" --body='{"mock": true}'
+playwright-cli route https://api.example.com/*
 playwright-cli route-list
-playwright-cli unroute "**/*.jpg"
-playwright-cli unroute
+playwright-cli unroute https://api.example.com/*
+playwright-cli network
 ```
 
 ### DevTools
@@ -147,113 +129,72 @@ playwright-cli unroute
 ```bash
 playwright-cli console
 playwright-cli console warning
-playwright-cli network
-playwright-cli run-code "async page => await page.context().grantPermissions(['geolocation'])"
+playwright-cli run-code "await page.goto('https://example.com'); await page.fill('input', 'text')"
 playwright-cli tracing-start
 playwright-cli tracing-stop
 playwright-cli video-start
-playwright-cli video-stop video.webm
+playwright-cli video-stop
 ```
 
-### Install
+## Configuration
 
-```bash
-playwright-cli install --skills
-playwright-cli install-browser
+### Default Options
+
+This skill is configured with default options to provide a better experience:
+
+```yaml
+default-options:
+  open: --headed
 ```
 
-### Configuration
+This means `playwright-cli open` will always start in **headed mode** (visible browser window), making it easy to see what's happening during automation.
+
+You can still override these defaults by explicitly passing different flags:
+
 ```bash
-# Use specific browser when creating session
-playwright-cli open --browser=chrome
+# Override default and run headless
+playwright-cli open --headless
+
+# Override with a different browser
 playwright-cli open --browser=firefox
-playwright-cli open --browser=webkit
-playwright-cli open --browser=msedge
-# Connect to browser via extension
-playwright-cli open --extension
-
-# Use persistent profile (by default profile is in-memory)
-playwright-cli open --persistent
-# Use persistent profile with custom directory
-playwright-cli open --profile=/path/to/profile
-
-# Start with config file
-playwright-cli open --config=my-config.json
-
-# Close the browser
-playwright-cli close
-# Delete user data for the default session
-playwright-cli delete-data
 ```
 
-### Browser Sessions
+### Available Options for `open`
+
+- `--headed` - Run browser in headed mode (visible window) - **default**
+- `--headless` - Run browser in headless mode (no visible window)
+- `--browser chrome` - Use Chrome browser
+- `--browser firefox` - Use Firefox browser
+- `--browser webkit` - Use WebKit browser
+- `--profile directory` - Use persistent browser profile
+
+## Advanced Usage
+
+### Running Code
 
 ```bash
-# create new browser session named "mysession" with persistent profile
-playwright-cli -s=mysession open example.com --persistent
-# same with manually specified profile directory (use when requested explicitly)
-playwright-cli -s=mysession open example.com --profile=/path/to/profile
-playwright-cli -s=mysession click e6
-playwright-cli -s=mysession close  # stop a named browser
-playwright-cli -s=mysession delete-data  # delete user data for persistent session
-
-playwright-cli list
-# Close all browsers
-playwright-cli close-all
-# Forcefully kill all browser processes
-playwright-cli kill-all
+playwright-cli run-code "await page.goto('https://example.com'); await page.fill('input', 'text')"
 ```
 
-## Example: Form submission
+### Tracing
 
 ```bash
-playwright-cli open https://example.com/form
-playwright-cli snapshot
-
-playwright-cli fill e1 "user@example.com"
-playwright-cli fill e2 "password123"
-playwright-cli click e3
-playwright-cli snapshot
-playwright-cli close
-```
-
-## Example: Multi-tab workflow
-
-```bash
-playwright-cli open https://example.com
-playwright-cli tab-new https://example.com/other
-playwright-cli tab-list
-playwright-cli tab-select 0
-playwright-cli snapshot
-playwright-cli close
-```
-
-## Example: Debugging with DevTools
-
-```bash
-playwright-cli open https://example.com
-playwright-cli click e4
-playwright-cli fill e7 "test"
-playwright-cli console
-playwright-cli network
-playwright-cli close
-```
-
-```bash
-playwright-cli open https://example.com
 playwright-cli tracing-start
-playwright-cli click e4
-playwright-cli fill e7 "test"
+playwright-cli goto https://example.com
+playwright-cli click e5
 playwright-cli tracing-stop
-playwright-cli close
 ```
 
-## Specific tasks
+### Video Recording
 
-* **Request mocking** [references/request-mocking.md](references/request-mocking.md)
-* **Running Playwright code** [references/running-code.md](references/running-code.md)
-* **Browser session management** [references/session-management.md](references/session-management.md)
-* **Storage state (cookies, localStorage)** [references/storage-state.md](references/storage-state.md)
-* **Test generation** [references/test-generation.md](references/test-generation.md)
-* **Tracing** [references/tracing.md](references/tracing.md)
-* **Video recording** [references/video-recording.md](references/video-recording.md)
+```bash
+playwright-cli video-start
+playwright-cli goto https://example.com
+playwright-cli video-stop
+```
+
+### Request Mocking
+
+```bash
+playwright-cli route https://api.example.com/* --json='{"status": 200, "body": {"data": "mocked"}}'
+```

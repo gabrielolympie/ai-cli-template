@@ -132,8 +132,22 @@ See the `skill-doc` skill for complete instructions on writing new skills.
 name: your-skill-name
 description: What this skill does
 allowed-tools: Bash(your-cli:*)
+default-options:        # Optional: Configure default behavior
+  command: --flags
 ---
 ```
+
+### Default Options
+
+Skills can define default options for specific commands to provide a better default experience:
+
+```yaml
+default-options:
+  open: --headed
+  run: --verbose
+```
+
+**Example**: The `playwright-cli` skill is configured with `open: --headed` by default, so the browser window is always visible when you start it.
 
 ## AGENT MEMORY MANAGEMENT
 
