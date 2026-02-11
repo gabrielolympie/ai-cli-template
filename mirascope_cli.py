@@ -8,6 +8,7 @@ from src.tools.file_create import file_create
 from src.tools.file_read import file_read
 from src.tools.file_edit import file_edit
 from src.tools.execute_bash import execute_bash
+from src.multiline_input import multiline_input
 from src.tools.plan import plan
 
 os.environ['OPENAI_API_KEY'] = "sk-010101"
@@ -48,6 +49,10 @@ def cli():
     system_prompt = load_base_prompt() + load_claude_md()
     
     print("Welcome to the Custom CLI Assistant! Type your commands below.")
+    print("  - Press Enter for new lines")
+    print("  - Press Shift+Enter to submit")
+    print("  - Press Ctrl+C to cancel input")
+    print()
 
     messages = [
         llm.messages.system(system_prompt),
@@ -55,10 +60,13 @@ def cli():
     
     while True:
         try:
-            user_input = input("> ")
+            user_input = multiline_input("> ")
         except (EOFError, KeyboardInterrupt):
             print("\nGoodbye!")
             break
+        
+        if not user_input:
+            continue
         
         if user_input.lower() in ['quit', 'exit', 'q']:
             print("Goodbye!")
