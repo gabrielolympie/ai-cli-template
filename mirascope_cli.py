@@ -230,7 +230,7 @@ def cli():
         # Display token estimate at the end of each turn
         if not interrupted:
             token_count = estimate_tokens_from_messages(messages)
-            max_tokens = 8196
+            max_tokens = 262144
             print()
             print(f"📊 Context window usage: {format_token_estimate(token_count, max_tokens)}")
             print()
