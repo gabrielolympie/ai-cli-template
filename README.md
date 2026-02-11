@@ -2,23 +2,11 @@
 
 A minimal, hackable CLI assistant built with [Mirascope](https://github.com/mirascope/mirascope).
 
-## ⚠️ Important Warning
+---
 
-This CLI is a **sandbox environment without security measures or failsafes**. It executes:
-- Arbitrary bash commands with system access
-- Python code via tool execution
-- File system operations (create/read/edit)
+## ⚠️ Warning: Sandbox Environment
 
-**Security implications:**
-- No sandboxing or containerization
-- No input validation or sanitization
-- No permission checks
-- Commands execute with your user privileges
-
-**Use responsibly:**
-- Never run against untrusted models or inputs
-- Be cautious with file operations
-- Understand that bash commands have full system access
+This CLI executes arbitrary commands with full system access. Use responsibly.
 
 ---
 
@@ -27,77 +15,53 @@ This CLI is a **sandbox environment without security measures or failsafes**. It
 ```bash
 git clone git@github.com-personal:gabrielolympie/cli-template.git
 cd cli-template
-pip install mirascope
+./install.sh
 python mirascope_cli.py
 ```
 
-Edit `mirascope_cli.py` to set your LLM endpoint:
+Edit `mirascope_cli.py` to configure your LLM:
 
 ```python
 os.environ['OPENAI_API_KEY'] = "sk-..."
 os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
 ```
 
-## Features
+---
 
-- **File operations** (create/read/edit)
-- **Bash execution** (60s timeout)
-- **Planning tool** (task breakdown)
-- **Skill system** (modular capability expansion)
+## Capabilities
 
-## Available Tools
+| Feature | Description |
+|---------|-------------|
+| **File Ops** | Create, read, edit files |
+| **Bash** | Execute commands (60s timeout) |
+| **Planning** | Break down complex tasks |
+| **Browser** | Automate web interactions via Playwright |
+| **Web** | Browse and extract webpage content |
+| **Skills** | Extend via modular capabilities |
 
-**File**: `file_create`, `file_read`, `file_edit`  
-**Bash**: `execute_bash`  
-**Planning**: `plan`  
-**Skills**: `list_skills()`, `get_skill_info()`, `skill_search()`
+---
 
-## Configuration
-
-- **System prompt**: Edit `prompts/system.md`
-- **Model config**: Adjust in `mirascope_cli.py` (`model = llm.Model(...)`)
-
-## Adding Tools
-
-The CLI can create its own tools dynamically:
-
-1. Use the `file_create` tool to create `src/tools/my_tool.py` with `@llm.tool` decorator
-2. Import the tool in `mirascope_cli.py`
-3. Add to `tools=[...]` list in `model.stream()`
-
-### Example Tool Structure
-
-```python
-from mirascope import llm
-
-@llm.tool
-def my_new_tool(param: str) -> str:
-    """Description of what this tool does."""
-    # Tool implementation
-    return f"Result for {param}"
-```
-
-## Project Structure
+## Key Files
 
 ```
 mirascope_cli.py        # Main entry point
-prompts/
-  system.md             # System prompt
+prompts/system.md       # System prompt
 src/tools/              # Tool definitions
-src/skills/             # Skill management system
-.claude/skills/         # User-created skills
+src/skills/             # Skill system
+.claude/skills/         # User skills
 ```
+
+---
 
 ## Skill System
 
-The skill management system has been directly derived from the one used in [Claude Code](https://github.com/anthropics/claude-code). This system allows extending the CLI's capabilities through modular skills that define new tools and workflows.
+The skill management system (derived from [Claude Code](https://github.com/anthropics/claude-code)) lets you extend capabilities via YAML-configured skills.
 
-Skills are loaded from `.claude/skills/` and enable:
-- Modular capability expansion via skill packages
-- CLI tool exposure through YAML frontmatter configuration
-- Automatic skill discovery and documentation
+**Example skills:**
+- `playwright-cli` - Browser automation
+- `skill-doc` - Skill documentation
 
-See the `skill-doc` skill for complete documentation on writing new skills.
+---
 
 ## License
 
