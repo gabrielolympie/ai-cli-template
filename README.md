@@ -2,6 +2,26 @@
 
 A minimal, hackable CLI assistant built with [Mirascope](https://github.com/mirascope/mirascope).
 
+## ⚠️ Important Warning
+
+This CLI is a **sandbox environment without security measures or failsafes**. It executes:
+- Arbitrary bash commands with system access
+- Python code via tool execution
+- File system operations (create/read/edit)
+
+**Security implications:**
+- No sandboxing or containerization
+- No input validation or sanitization
+- No permission checks
+- Commands execute with your user privileges
+
+**Use responsibly:**
+- Never run against untrusted models or inputs
+- Be cautious with file operations
+- Understand that bash commands have full system access
+
+---
+
 ## Quick Start
 
 ```bash
@@ -25,6 +45,7 @@ os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
 - **Session persistence** (save/restore state)
 - **Context compaction** (for long sessions)
 - **Planning tool** (task breakdown)
+- **Self-improvement** (can create new tools dynamically)
 
 ## Available Tools
 
@@ -41,9 +62,23 @@ os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
 
 ## Adding Tools
 
-1. Create `src/tools/my_tool.py` with `@llm.tool` decorator
-2. Import in `mirascope_cli.py`
+The CLI can create its own tools dynamically:
+
+1. Use the `file_create` tool to create `src/tools/my_tool.py` with `@llm.tool` decorator
+2. Import the tool in `mirascope_cli.py`
 3. Add to `tools=[...]` list in `model.stream()`
+
+### Example Tool Structure
+
+```python
+from mirascope import llm
+
+@llm.tool
+def my_new_tool(param: str) -> str:
+    """Description of what this tool does."""
+    # Tool implementation
+    return f"Result for {param}"
+```
 
 ## Project Structure
 

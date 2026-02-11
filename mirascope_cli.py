@@ -56,6 +56,10 @@ def cli():
     
     print("Welcome to the Custom CLI Assistant! Type your commands below.")
 
+    messages = [
+        llm.messages.system(system_prompt),
+    ]
+    
     while True:
         try:
             user_input = input("> ")
@@ -67,10 +71,7 @@ def cli():
             print("Goodbye!")
             break
         
-        messages = [
-            llm.messages.system(system_prompt),
-            llm.messages.user(user_input),
-        ]
+        messages.append(llm.messages.user(user_input))
 
         response = model.stream(
             messages,
@@ -117,6 +118,8 @@ def cli():
                 break  # Agent is finished.
 
             response = response.resume(response.execute_tools())
+        
+        messages = response.messages
 
 
 if __name__ == "__main__":
