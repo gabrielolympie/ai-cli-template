@@ -21,13 +21,12 @@ def multiline_input(prompt: str = "> ") -> str:
         from prompt_toolkit.key_binding import KeyBindings
 
         bindings = KeyBindings()
-        session = PromptSession(key_bindings=bindings, multiline=True)
+        session = PromptSession(key_bindings=bindings, multiline=False)
 
         @bindings.add('escape', 'enter')
-        def submit(event):
-            """Submit on Alt+Enter (or Escape then Enter)."""
-            buffer = event.current_buffer
-            buffer.validate_and_handle()
+        def newline(event):
+            """Insert a newline on Alt+Enter (or Escape then Enter)."""
+            event.current_buffer.insert_text('\n')
 
         @bindings.add('c-c')
         def cancel(event):

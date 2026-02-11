@@ -49,8 +49,8 @@ def cli():
     system_prompt = load_base_prompt() + load_claude_md()
     
     print("Welcome to the Custom CLI Assistant! Type your commands below.")
-    print("  - Press Enter for new lines")
-    print("  - Press Shift+Enter to submit")
+    print("  - Press Alt + Enter for new lines")
+    print("  - Press Enter to submit")
     print("  - Press Ctrl+C to cancel input")
     print()
 
