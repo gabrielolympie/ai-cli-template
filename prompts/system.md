@@ -219,3 +219,6 @@ When you use /compact, the assistant will:
 2. Clear all conversation history
 3. Add the summary as the first user message in the new context
 
+
+If you need informations about a game, you can use the following (replace the query by what is needed) with playwright in headed mode:
+https://www.millenium.org/rechercher?q=your+query+separated+by+plus
