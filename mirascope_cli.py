@@ -2,6 +2,7 @@ from mirascope import llm
 import os
 import json
 from pathlib import Path
+import yaml
 
 ## Tools
 from src.tools.file_create import file_create
@@ -27,21 +28,71 @@ skill_manager.load_skills()
 skill_inventory = skill_manager.generate_prompt_context()
 skill_writer_guide = skill_manager.generate_skill_writer_guide()
 
-os.environ['OPENAI_API_KEY'] = "sk-010101"
-os.environ['OPENAI_API_BASE'] = "http://localhost:5000/v1"
+def load_config(config_path: str = "config.yaml") -> dict:
+    """Load configuration from config.yaml"""
+    config = {
+        "llm": {
+            "api_base": None,
+            "provider": "openai",
+            "model_name": "gpt-4",
+            "max_completion_tokens": 8192,
+            "context_size": 128000,
+            "support_image": False,
+            "support_audio_input": False,
+            "support_audio_output": False,
+            "thinking": {"level": None, "include_thoughts": False}
+        },
+        "debug": False
+    }
+    
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            loaded_config = yaml.safe_load(f)
+            if loaded_config:
+                config.update(loaded_config)
+    
+    return config
 
-llm.register_provider(
-    "openai:completions",
-    scope="vllm/",
-    base_url="http://localhost:5000/v1",
-    api_key="vllm",
-)
+def setup_provider_from_config(config: dict):
+    """Set up the LLM provider based on config"""
+    llm_config = config.get("llm", {})
+    api_base = llm_config.get("api_base")
+    provider = llm_config.get("provider", "openai")
+    api_key = os.environ.get("OPENAI_API_KEY", "vllm")
+    
+    if api_base:
+        llm.register_provider(
+            "openai:completions",
+            scope=f"{provider}/",
+            base_url=api_base,
+            api_key=api_key,
+        )
 
-model = llm.Model(
-    "vllm/vllm",
-    max_tokens=8196,
-    thinking={"level": "high", "include_thoughts": True}
-)
+def create_model_from_config(config: dict) -> llm.Model:
+    """Create an LLM model instance from config"""
+    llm_config = config.get("llm", {})
+    
+    model_name = llm_config.get("model_name", "gpt-4")
+    max_tokens = llm_config.get("max_completion_tokens", 8192)
+    thinking_config = llm_config.get("thinking", {"level": None, "include_thoughts": False})
+    
+    thinking = None
+    if thinking_config.get("level") and thinking_config.get("level") != "None":
+        thinking = {
+            "level": thinking_config.get("level"),
+            "include_thoughts": thinking_config.get("include_thoughts", True)
+        }
+    
+    return llm.Model(
+        model_name,
+        max_tokens=max_tokens,
+        thinking=thinking
+    )
+
+# Load configuration
+config = load_config()
+setup_provider_from_config(config)
+model = create_model_from_config(config)
 
 def load_base_prompt(prompt_path: str = "prompts/system.md") -> str:
     """Load the system prompt from prompts/system.md."""
@@ -232,7 +283,7 @@ def cli():
         # Display token estimate at the end of each turn
         if not interrupted:
             token_count = estimate_tokens_from_messages(messages)
-            max_tokens = 262144
+            max_tokens = config["llm"]["context_size"]
             print()
             print(f"📊 Context window usage: {format_token_estimate(token_count, max_tokens)}")
             print()

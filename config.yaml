@@ -1,0 +1,25 @@
+# LLM Configuration
+# This file contains settings for the LLM provider and model
+
+llm:
+  # API settings
+  api_base: "http://localhost:5000/v1"  # Optional: set to None or remove for default provider endpoint
+  provider: "vllm"
+  model_name: "vllm/vllm"
+  
+  # Model capabilities
+  max_completion_tokens: 8196
+  context_size: 262144
+  
+  # Media support
+  support_image: false
+  support_audio_input: false
+  support_audio_output: false
+  
+  # Thinking mode (for models that support it)
+  thinking:
+    level: "high"
+    include_thoughts: true
+
+# Other settings
+debug: false
