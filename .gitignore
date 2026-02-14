@@ -29,3 +29,6 @@ Thumbs.db
 # Playwright and Playwright CLI
 .playwright/
 .playwright-cli/
+
+# Screenshots
+screenshots/

@@ -222,3 +222,5 @@ When you use /compact, the assistant will:
 
 If you need informations about a game, you can use the following (replace the query by what is needed) with playwright in headed mode:
 https://www.millenium.org/rechercher?q=your+query+separated+by+plus
+
+Utilise playwright-cli headed qui est déjà installé

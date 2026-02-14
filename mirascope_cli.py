@@ -3,6 +3,10 @@ import os
 import json
 from pathlib import Path
 import yaml
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 ## Tools
 from src.tools.file_create import file_create
@@ -54,13 +58,44 @@ def load_config(config_path: str = "config.yaml") -> dict:
     return config
 
 def setup_provider_from_config(config: dict):
-    """Set up the LLM provider based on config"""
+    """Set up the LLM provider based on config.
+
+    Supports:
+    - Native providers: anthropic, google, openai, ollama, mlx (auto-registered by Mirascope)
+    - OpenAI-compatible providers: vllm, zai, together, xai, etc. (requires registration)
+    """
     llm_config = config.get("llm", {})
-    api_base = llm_config.get("api_base")
     provider = llm_config.get("provider", "openai")
-    api_key = os.environ.get("OPENAI_API_KEY", "vllm")
-    
-    if api_base:
+    api_base = llm_config.get("api_base")
+    api_key_env = llm_config.get("api_key_env")  # Optional: provider-specific API key env var
+
+    # Native providers - Mirascope handles these automatically
+    # Just ensure the correct env var is set
+    native_providers = ["anthropic", "google", "openai", "ollama", "mlx"]
+    if provider in native_providers and not api_base:
+        # No registration needed - Mirascope auto-registers native providers
+        return
+
+    # OpenAI-compatible providers (vllm, zai, together, xai, custom endpoints)
+    # Build API key lookup: try provider-specific first, then OPENAI_API_KEY
+    if api_key_env:
+        api_key = os.environ.get(api_key_env)
+    else:
+        # Auto-determine provider-specific env var name
+        provider_env_map = {
+            "vllm": "VLLM_API_KEY",
+            "zai": "ZAI_API_KEY",
+            "together": "TOGETHER_API_KEY",
+            "xai": "XAI_API_KEY",
+        }
+        env_var = provider_env_map.get(provider, "OPENAI_API_KEY")
+        api_key = os.environ.get(env_var)
+
+        # Fallback for local servers that don't need real keys
+        if not api_key and provider in ["vllm", "ollama"]:
+            api_key = "unused"  # vLLM/Ollama often don't validate API keys
+
+    if api_base and api_key:
         llm.register_provider(
             "openai:completions",
             scope=f"{provider}/",
@@ -301,7 +336,21 @@ def cli():
 
             # Check if there are any tool calls to execute
             if response.tool_calls:
-                response = response.resume(response.execute_tools())
+                tool_outputs = response.execute_tools()
+
+                # Check for screenshot tools with image data and LLM supports images
+                llm_config = config.get("llm", {})
+                supports_images = llm_config.get("support_image", False)
+
+                if supports_images:
+                    # Look for screenshot results with IMAGE_BASE64 data
+                    screenshot_messages = []
+                    for output in tool_outputs:
+                        if output.name == "screenshot" and "IMAGE_BASE64:" in output.result:
+                            parts = output.result.split("|")
+                            print(parts)
+
+                response = response.resume(tool_outputs)
             else:
                 break
 
