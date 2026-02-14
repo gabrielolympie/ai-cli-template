@@ -7,9 +7,9 @@ including loading, tracking, and executing skills efficiently.
 import os
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Set
+from typing import Dict, List, Optional, Any, Set, Callable
 from .loader import (
-    load_skill, 
+    load_skill,
     load_all_skills,
     generate_skill_inventory,
     generate_skill_usage_guide,
@@ -26,23 +26,26 @@ SKILL_CACHE_FILE = Path(PROJECT_ROOT) / ".claude" / "skill_cache.json"
 
 class SkillManager:
     """Manager for all skill operations.
-    
+
     Handles loading, caching, and efficient access to skills.
     Provides methods for querying skills, executing skill tasks,
     and managing skill lifecycle.
     """
-    
-    def __init__(self, skills_dir: Optional[Path] = None):
+
+    def __init__(self, skills_dir: Optional[Path] = None, skill_enabled_checker: Optional[Callable[[str], bool]] = None):
         """Initialize the skill manager.
-        
+
         Args:
             skills_dir: Path to skills directory, defaults to .claude/skills/
+            skill_enabled_checker: Optional function to check if a skill is enabled.
+                                 Takes skill name and returns bool. If None, all skills enabled.
         """
         self.skills_dir = skills_dir or SKILLS_DIR
         self._skills: Dict[str, Dict[str, Any]] = {}
         self._tool_map: Dict[str, List[str]] = {}  # tool_pattern -> [skill_names]
         self._cache: Optional[Dict] = None
         self._cache_valid = False
+        self._skill_enabled_checker = skill_enabled_checker
         
     def load_skills(self, force_reload: bool = False) -> Dict[str, Dict[str, Any]]:
         """Load all skills, using cache if available.
@@ -174,16 +177,25 @@ class SkillManager:
     
     def generate_prompt_context(self) -> str:
         """Generate skill context for the system prompt.
-        
+
         Returns:
             Formatted skill context string
         """
         if not self._skills:
             self.load_skills()
-        
-        inventory = generate_skill_inventory(self._skills)
-        usage = generate_skill_usage_guide(self._skills)
-        
+
+        # Filter skills based on enabled checker
+        filtered_skills = self._skills
+        if self._skill_enabled_checker:
+            filtered_skills = {
+                name: skill
+                for name, skill in self._skills.items()
+                if self._skill_enabled_checker(name)
+            }
+
+        inventory = generate_skill_inventory(filtered_skills)
+        usage = generate_skill_usage_guide(filtered_skills)
+
         return inventory + "\n\n" + usage
     
     def generate_skill_writer_guide(self) -> str:
@@ -312,14 +324,18 @@ class SkillManager:
             return False
 
 
-def get_skill_manager() -> SkillManager:
+def get_skill_manager(skill_enabled_checker: Optional[Callable[[str], bool]] = None) -> SkillManager:
     """Get or create the global skill manager instance.
-    
+
+    Args:
+        skill_enabled_checker: Optional function to check if a skill is enabled.
+                             Only used on first initialization.
+
     Returns:
         SkillManager instance
     """
     if not hasattr(get_skill_manager, "_instance"):
-        get_skill_manager._instance = SkillManager()
+        get_skill_manager._instance = SkillManager(skill_enabled_checker=skill_enabled_checker)
     return get_skill_manager._instance
 
 

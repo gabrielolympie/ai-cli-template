@@ -23,6 +23,18 @@ def load_config(config_path: str = "config.yaml") -> dict:
             "support_audio_output": False,
             "thinking": {"level": None, "include_thoughts": False}
         },
+        "tools": {
+            "file_create": True,
+            "file_read": True,
+            "file_edit": True,
+            "execute_bash": True,
+            "screenshot": True,
+            "plan": True,
+            "browse_internet": True,
+            "clarify": True,
+            "summarize_conversation": True,
+        },
+        "skills": {},  # Empty means all skills enabled by default
         "debug": False
     }
 

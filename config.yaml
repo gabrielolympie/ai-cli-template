@@ -33,6 +33,31 @@ llm:
     level: "high"
     include_thoughts: true
 
+# Tools Configuration
+tools:
+  # Enable/disable individual tools (all enabled by default)
+  file_create: true
+  file_read: true
+  file_edit: true
+  execute_bash: true
+  screenshot: true
+  plan: true
+  browse_internet: true
+  clarify: true
+  summarize_conversation: true
+
+# Skills Configuration
+skills:
+  # Enable/disable individual skills (all enabled by default)
+  # Skills are loaded from .claude/skills/
+  # Use skill name as key (e.g., "playwright-cli: true")
+  # Example:
+  #   playwright-cli: true
+  #   keybindings-help: false
+  # Set to false to disable specific skills
+  skill-doc: true
+  playwright-cli: false
+
 # Other settings
 debug: false
 

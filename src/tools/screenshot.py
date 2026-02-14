@@ -42,7 +42,7 @@ def detect_os() -> str:
 
 
 def resize_to_1_megapixel(img: Image.Image) -> Image.Image:
-    """Resize an image to ~1 MP while preserving aspect ratio."""
+    """Resize an image to ~1 MP while preserving aspect ratio."""
     width, height = img.size
     current_pixels = width * height
     target_pixels = 1_000_000
@@ -90,19 +90,39 @@ def take_screenshot_mss(path: str) -> None:
         sct.shot(mon=-1, output=path)
 
 
+def _get_windows_temp_dir() -> str:
+    """
+    Retrieve the Windows %TEMP% directory from WSL using PowerShell.
+    Returns the path in Windows format, e.g. ``C:\\Users\\you\\AppData\\Local\\Temp``.
+    """
+    powershell_path = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    result = subprocess.run(
+        [powershell_path, "-NoProfile", "-Command", "[System.IO.Path]::GetTempPath()"],
+        capture_output=True,
+        timeout=10,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Failed to obtain Windows TEMP directory")
+    win_temp = result.stdout.decode("utf-8", errors="ignore").strip()
+    return win_temp.rstrip("\\")
+
+
 def take_screenshot_wsl(path: str) -> None:
     """
     WSL‑specific screenshot using PowerShell with DPI‑aware capture.
-    The image is first saved to a temporary `.tmp/` folder, then moved to `path`.
-    """
-    temp_dir = os.path.join(PROJECT_ROOT, ".tmp")
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_capture_path = os.path.join(
-        temp_dir, f"capture_{uuid.uuid4().hex[:8]}.png"
-    )
 
-    windows_output_path = linux_to_windows_path(temp_capture_path)
-    windows_path_escaped = windows_output_path.replace('\\', '\\\\')
+    The image is first saved to the Windows ``%TEMP%`` directory (guaranteed
+    to be a valid Windows path), then moved back into the WSL filesystem at
+    the user‑requested ``path``.
+    """
+    temp_filename = f"capture_{uuid.uuid4().hex[:8]}.png"
+    win_temp_dir = _get_windows_temp_dir()
+    windows_output_path = os.path.join(win_temp_dir, temp_filename)
+    windows_path_escaped = windows_output_path.replace("\\", "\\\\")
+
+    drive_letter = win_temp_dir[0].lower()
+    wsl_temp_dir = f"/mnt/{drive_letter}/{win_temp_dir[3:].replace('\\\\', '/').replace('\\', '/')}"
+    temp_capture_path = os.path.join(wsl_temp_dir, temp_filename)
 
     ps_script = fr"""Add-Type @"
 using System;
@@ -155,6 +175,8 @@ $bitmap.Dispose()
 Write-Host "Screenshot saved successfully"
 """
 
+    temp_dir = os.path.join(PROJECT_ROOT, ".tmp")
+    os.makedirs(temp_dir, exist_ok=True)
     ps_script_path = os.path.join(
         temp_dir, f"screenshot_{uuid.uuid4().hex[:8]}.ps1"
     )
@@ -170,26 +192,17 @@ Write-Host "Screenshot saved successfully"
             timeout=30,
         )
 
-        stdout_text = (
-            result.stdout.decode("utf-8", errors="ignore")
-            if result.stdout
-            else ""
-        )
-        stderr_text = (
-            result.stderr.decode("utf-8", errors="ignore")
-            if result.stderr
-            else ""
-        )
+        stdout_text = result.stdout.decode("utf-8", errors="ignore") if result.stdout else ""
+        stderr_text = result.stderr.decode("utf-8", errors="ignore") if result.stderr else ""
 
         if result.returncode != 0:
-            raise Exception(f"PowerShell failed: {stderr_text}")
+            raise RuntimeError(f"PowerShell failed: {stderr_text}")
 
-        # Move the temporary capture to the final destination (Linux side)
         if os.path.exists(temp_capture_path):
             shutil.move(temp_capture_path, path)
         else:
-            raise Exception(
-                f"Screenshot not created at temp path: {temp_capture_path}"
+            raise FileNotFoundError(
+                f"Screenshot not created at expected temp path: {temp_capture_path}"
             )
 
         return stdout_text
@@ -198,62 +211,49 @@ Write-Host "Screenshot saved successfully"
         if os.path.exists(ps_script_path):
             os.unlink(ps_script_path)
         if os.path.exists(temp_capture_path):
-            os.unlink(temp_capture_path)
+            try:
+                os.unlink(temp_capture_path)
+            except Exception:
+                pass
 
 
 @llm.tool
 def screenshot(
-    path: str = None,
-    bbox_x: int = None,
-    bbox_y: int = None,
-    bbox_width: int = None,
-    bbox_height: int = None,
+    bbox_x: int | None = None,
+    bbox_y: int | None = None,
+    bbox_width: int | None = None,
+    bbox_height: int | None = None,
 ):
     """
-    Take a screenshot and optionally crop to a bounding box.
+    Take a screenshot of the entire screen.
 
     The function automatically selects the appropriate capture method:
     - Windows / macOS / Linux → mss library
-    - WSL → PowerShell DPI‑aware capture (writes to .tmp/ first)
+    - WSL → PowerShell DPI‑aware capture (writes to %TEMP% first)
 
-    The image is resized to ~1 MP after optional cropping.
+    The image is resized to ~1 MP and saved to ./screenshot/<random>.png.
+
+    The bbox_x, bbox_y, bbox_width, and bbox_height parameters allow cropping
+    to a specific region of the screen. Unless there is a clear reason to use
+    them (e.g. the user explicitly asks to zoom into a region, inspect a
+    specific area, or crop the screenshot), leave them all as None to capture
+    the full screen.
+
+    Args:
+        bbox_x: X coordinate (pixels) of the top-left corner of the crop region. Leave None for full screen.
+        bbox_y: Y coordinate (pixels) of the top-left corner of the crop region. Leave None for full screen.
+        bbox_width: Width (pixels) of the crop region. Leave None for full screen.
+        bbox_height: Height (pixels) of the crop region. Leave None for full screen.
     """
     os_type = detect_os()
-
-    # ------------------------------------------------------------------
-    # NEW DEFAULT DIRECTORY & RANDOM filename
-    # ------------------------------------------------------------------
-    screenshots_dir = os.path.join(PROJECT_ROOT, "screenshot")   # subfolder "./screenshot"
+    screenshots_dir = os.path.join(PROJECT_ROOT, "screenshot")
 
     try:
-        # ---------- Determine output path ----------
-        if path is None:
-            # Random 8‑character hex name
-            random_name = f"{uuid.uuid4().hex[:8]}.png"
-            path = os.path.join(screenshots_dir, random_name)
-        else:
-            if not os.path.isabs(path):
-                path = os.path.abspath(path)
+        random_name = f"{uuid.uuid4().hex[:8]}.png"
+        path = os.path.join(screenshots_dir, random_name)
 
-        # ---------- Validate path ----------
-        normalized_path = os.path.normpath(path)
-        normalized_root = os.path.normpath(PROJECT_ROOT)
+        os.makedirs(screenshots_dir, exist_ok=True)
 
-        if not (
-            normalized_path == normalized_root
-            or normalized_path.startswith(normalized_root + os.sep)
-        ):
-            return (
-                f"Error: Path '{path}' is outside the project directory "
-                f"'{PROJECT_ROOT}'"
-            )
-
-        # Ensure the directory exists
-        parent_dir = os.path.dirname(path)
-        if parent_dir and not os.path.isdir(parent_dir):
-            os.makedirs(parent_dir)
-
-        # ---------- Bounding‑box handling ----------
         use_bbox = all(
             v is not None for v in [bbox_x, bbox_y, bbox_width, bbox_height]
         )
@@ -295,12 +295,11 @@ def screenshot(
             img = resize_to_1_megapixel(img)
             new_w, new_h = img.size
             print(
-                f"Resized to ~1 MP: {new_w}x{new_h} "
+                f"Resized to ~1 MP: {new_w}x{new_h} "
                 f"({new_w * new_h} pixels)"
             )
             img.save(path, "PNG")
 
-        # Return path relative to project root (now under ./screenshot)
         return f"screenshot/{os.path.basename(path)}"
 
     except Exception as e:
@@ -311,8 +310,8 @@ def screenshot(
 # Example usage (run directly for a quick test)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    # Basic screenshot (saved to ./screenshot/<random>.png)
+    # Basic full-screen screenshot (saved to ./screenshot/<random>.png)
     print(screenshot())
 
-    # Screenshot with a bounding box (uncomment to test)
+    # Screenshot with a bounding box crop (uncomment to test)
     # print(screenshot(bbox_x=100, bbox_y=100, bbox_width=800, bbox_height=600))
