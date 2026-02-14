@@ -7,9 +7,13 @@ llm:
   # provider: "vllm"
   # model_name: "vllm/vllm"
 
-  api_base: "https://api.z.ai/api/coding/paas/v4"  # Optional: set to None or remove for default provider endpoint
-  provider: "zai"
-  model_name: "zai/glm-4.7"
+  # api_base: "https://api.z.ai/api/coding/paas/v4"  # Optional: set to None or remove for default provider endpoint
+  # provider: "zai"
+  # model_name: "zai/glm-4.7"
+
+  provider: "mistral"      # Mistral AI (OpenAI-compatible endpoint)
+  api_base: "https://api.mistral.ai/v1"
+  model_name: "mistral/labs-devstral-small-2512"  # or mistral-medium-latest, mistral-small-lates
 
   # Optional: Override the default API key environment variable
   # If not set, will auto-determine based on provider name (e.g., VLLM_API_KEY, ZAI_API_KEY)
@@ -38,11 +42,16 @@ debug: false
 #   provider: "anthropic"     # uses ANTHROPIC_API_KEY
 #   provider: "openai"        # uses OPENAI_API_KEY
 #   provider: "google"         # uses GOOGLE_API_KEY
+#   provider: "together"       # uses TOGETHER_API_KEY
 #   provider: "ollama"        # uses OLLAMA_BASE_URL
 #   provider: "mlx"           # no API key needed
 #
 # OpenAI-compatible providers (requires api_base):
-#   provider: "vllm"          # uses VLLM_API_KEY or OPENAI_API_KEY
+#   provider: "mistral"      # Mistral AI (OpenAI-compatible endpoint)
+#   api_base: "https://api.mistral.ai/v1"
+#   model_name: "mistral/mistral-large-latest"  # or mistral-medium-latest, mistral-small-latest
+#
+#   provider: "vllm"          # vLLM local server
 #   api_base: "http://localhost:8000/v1"
 #
 #   provider: "zai"           # Z.AI GLM models

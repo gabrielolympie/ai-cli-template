@@ -16,7 +16,7 @@ def load_config(config_path: str = "config.yaml") -> dict:
             "api_base": None,
             "provider": "openai",
             "model_name": "gpt-4",
-            "max_completion_tokens": 8192,
+            # "max_completion_tokens": 8192,
             "context_size": 128000,
             "support_image": False,
             "support_audio_input": False,
@@ -56,6 +56,7 @@ def setup_provider(config: dict) -> None:
             "zai": "ZAI_API_KEY",
             "together": "TOGETHER_API_KEY",
             "xai": "XAI_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
         }
         env_var = provider_env_map.get(provider, "OPENAI_API_KEY")
         api_key = os.environ.get(env_var)
@@ -78,7 +79,11 @@ def load_model(config: dict) -> llm.Model:
     llm_config = config.get("llm", {})
 
     model_name = llm_config.get("model_name", "gpt-4")
-    max_tokens = llm_config.get("max_completion_tokens", 8192)
+    
+    max_tokens = None
+    if llm_config.get("provider") != "mistral":
+        max_tokens = llm_config.get("max_completion_tokens", 8192)
+        
     thinking_config = llm_config.get("thinking", {"level": None, "include_thoughts": False})
 
     thinking = None

@@ -19,6 +19,3 @@ src/tools/              # Tool definitions
 src/skills/             # Skill management system
 .claude/skills/         # User-created skills
 ```
-
-## Key Behaviors
-- Always read AGENT.md at conversation start
