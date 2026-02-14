@@ -58,6 +58,14 @@ skills:
   skill-doc: true
   playwright-cli: false
 
+# Voice Configuration (activated with /voice command)
+voice:
+  tts:
+    provider: "pocket_tts"    # "pocket_tts" (local CPU) | "pyttsx3" (fallback) | "openai" (cloud)
+    voice: "fantine"             # pocket_tts: alba | openai: alloy, nova, shimmer, etc.
+
+# pocket_tts options: alba, marius, javert, jean, fantine, cosette, eponine, azelma
+
 # Other settings
 debug: false
 

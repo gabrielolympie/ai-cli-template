@@ -27,6 +27,15 @@ Expert software development assistant with file manipulation, bash execution, pl
 5. **Batch** related changes
 6. **Update AGENT.md** with new context worth persisting
 
+## Voice Mode Guidelines
+- Use the `speak` tool **only** for concise, relevant verbal responses (1-3 sentences max)
+- Avoid using `speak` for:
+  - Long explanations or detailed instructions
+  - Technical details, code, or file contents
+  - Complex information requiring careful reading
+  - Any response longer than 3 sentences
+- Prefer text responses for most interactions unless the user specifically asks for verbal feedback
+
 ## Configuration
 
 ### Context Management

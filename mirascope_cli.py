@@ -31,6 +31,7 @@ from src.tools.estimate_tokens import (
     format_token_estimate,
 )
 from src.tools.clarify import clarify
+from src.tools.speak import speak, configure_speak
 
 # Skill Management
 from src.utils.skills.manager import get_skill_manager, SkillManager
@@ -50,15 +51,19 @@ ALL_TOOLS = {
     "browse_internet": browse_internet,
     "clarify": clarify,
     "summarize_conversation": summarize_conversation,
+    "speak": speak,
 }
 
 
-def get_enabled_tools() -> list:
+def get_enabled_tools(include_voice: bool = False) -> list:
     """Get list of enabled tools from config."""
     tools_config = config.get("tools", {})
     enabled = []
 
     for tool_name, tool_func in ALL_TOOLS.items():
+        # speak tool only available during voice mode
+        if tool_name == "speak" and not include_voice:
+            continue
         # Default to enabled if not specified
         if tools_config.get(tool_name, True):
             enabled.append(tool_func)
@@ -116,7 +121,11 @@ def cli() -> None:
     print("  - Type '/quit', '/exit', or '/q' to exit")
     print("  - Type '/reset' to clear conversation history and restart")
     print("  - Type '/compact' to summarize conversation, clear history, and preserve context")
+    print("  - Type '/voice' to toggle voice output mode")
     print()
+
+    # Voice mode state
+    voice_active = False
 
     messages = [
         llm.messages.system(system_prompt),
@@ -189,6 +198,28 @@ def cli() -> None:
             ]
             print("✅ Conversation compacted and history cleared.\n")
             continue
+
+        if user_input.lower().strip() == "/voice":
+            if not voice_active:
+                try:
+                    from src.voice.tts import create_tts
+                    from src.voice.audio_io import AudioPlayer
+                    voice_cfg = config.get("voice", {})
+                    tts = create_tts(voice_cfg.get("tts", {}))
+                    player = AudioPlayer()
+                    configure_speak(tts, player)
+                    voice_active = True
+                    print("[Voice mode ON] Agent can now speak aloud. /voice to disable.\n")
+                except ImportError as e:
+                    print(f"[Voice] Missing dependencies: {e}")
+                    print("[Voice] Install with: pip install sounddevice numpy pocket-tts\n")
+                except Exception as e:
+                    print(f"[Voice] Failed to start: {e}\n")
+            else:
+                configure_speak(None, None)
+                voice_active = False
+                print("[Voice mode OFF]\n")
+            continue
         # ------------------------------------------------------------------- #
 
         # Auto-compact if conversation is too long
@@ -228,10 +259,17 @@ def cli() -> None:
 
         messages.append(llm.messages.user(user_input))
 
+        # Inject voice context hint when voice mode is active
+        if voice_active:
+            messages.append(llm.messages.user(
+                "[System: Voice mode is active. Use the 'speak' tool to respond verbally "
+                "when appropriate. Keep spoken responses concise (1-3 sentences). "
+                "Still use text for code, file contents, etc. Speech plays in background.]"
+            ))
+
         response = model.stream(
             messages,
-            tools=get_enabled_tools(),
-            # Skill tools will be added dynamically
+            tools=get_enabled_tools(include_voice=voice_active),
         )
 
         while True:  # The Agent Loop
